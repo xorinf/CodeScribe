@@ -8,7 +8,7 @@ It analyzes source code, version history, and team communications to produce acc
 
 ## Structure
 
-- ``: Code parsing & AST generation
+- `src/parser`: Code parsing & AST generation
 - `src/analyzer`: Semantic analysis of the codebase
 - `src/generator`: NLP processing to generate documentation
 - `src/integrations`: Git and CI/CD integrations
