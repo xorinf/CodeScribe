@@ -35,16 +35,5 @@ We are currently in the active development phase.
 - [ ] **CI/CD Integration**: Automated workflows and pipeline integration.
 - [ ] **Public Beta**: First major release.
 
----
-
-##  Installation
-
-*(Coming Soon 😭🔥)*
-
-##  Usage
-
-*(Coming Soon 🫡😭)*
-
----
 
 *CodeScribe is currently under active development. Stay tuned for updates.*
