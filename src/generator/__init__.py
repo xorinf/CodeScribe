@@ -1,8 +1,13 @@
 """
 src.generator -- Documentation Generation Package.
 
-This package will be responsible for transforming analyzed code data
-into human-readable documentation in various output formats.
+Transforms analyzed code data into human-readable documentation
+in Markdown format. This is the final stage of the CodeScribe pipeline.
 
-Status: Pending implementation (Phase 3).
+Public API:
+    - DocGenerator: The main generation engine.
 """
+
+from src.generator.generator import DocGenerator
+
+__all__ = ["DocGenerator"]
