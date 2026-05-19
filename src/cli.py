@@ -189,39 +189,66 @@ def _handle_generate(args: argparse.Namespace) -> None:
     # ------------------------------------------------------------------
     logger.info("Step 1/3 -- Parsing source files...")
     start = time.time()
-    source_files = _collect_source_files(input_dir, config.get("exclude", []))
+    from src.parser.python_parser import PythonParser
+    parser = PythonParser()
+    parse_result = parser.parse_directory(input_dir, exclude_dirs=config.get("exclude", []))
     elapsed = time.time() - start
 
-    if not source_files:
+    if not parse_result.modules:
         logger.warning("No supported source files found in %s", input_dir)
         logger.warning("Supported languages: %s", ", ".join(SUPPORTED_LANGUAGES))
         sys.exit(0)
 
     logger.info(
-        "  Found %d source file(s) in %.2fs",
-        len(source_files),
+        "  Parsed %d module(s) in %.2fs",
+        len(parse_result.modules),
         elapsed,
     )
-    for f in source_files:
-        logger.debug("  -> %s", f.relative_to(input_dir))
-
-    # TODO: Pass source_files to src.parser module once implemented.
 
     # ------------------------------------------------------------------
     # Step 2: Analyze code structure
     # ------------------------------------------------------------------
     logger.info("Step 2/3 -- Analyzing code structure...")
+    start = time.time()
 
-    # TODO: Pass parsed AST data to src.analyzer module once implemented.
-    logger.info("  Analysis engine pending implementation (Phase 2).")
+    from src.analyzer.analyzer import SemanticAnalyzer
+    analyzer = SemanticAnalyzer(project_root=input_dir)
+    analysis = analyzer.analyze(parse_result)
+
+    logger.info(
+        "  Analyzed %d classes and %d dependencies in %.2fs",
+        len(analysis.inheritance_tree.nodes),
+        len(analysis.dependency_graph.edges),
+        time.time() - start,
+    )
 
     # ------------------------------------------------------------------
     # Step 3: Generate documentation
     # ------------------------------------------------------------------
     logger.info("Step 3/3 -- Generating documentation...")
+    start = time.time()
 
-    # TODO: Pass analysis results to src.generator module once implemented.
-    logger.info("  Generator engine pending implementation (Phase 3).")
+    from src.generator.generator import DocGenerator
+
+    use_nlp = getattr(args, "use_nlp", False)
+    api_key = getattr(args, "api_key", None)
+
+    generator = DocGenerator(
+        project_name=APP_NAME,
+        include_private=config.get("include_private", False),
+        use_nlp=use_nlp,
+        api_key=api_key
+    )
+
+    files = generator.generate(
+        parse_result, analysis, output_dir, single_file=False
+    )
+
+    logger.info(
+        "  Generated %d file(s) in %.2fs",
+        len(files),
+        time.time() - start,
+    )
 
     logger.info("Pipeline complete. Output target: %s", output_dir)
 
@@ -358,6 +385,11 @@ def _build_parser() -> argparse.ArgumentParser:
             "human-readable documentation automatically."
         ),
     )
+    parser.add_argument(
+        "-v", "--version",
+        action="version",
+        version=f"{APP_NAME} v{APP_VERSION}",
+    )
 
     subparsers = parser.add_subparsers(
         dest="command",
@@ -391,9 +423,20 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Output format for generated documentation (default: markdown).",
     )
     gen_parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
         action="store_true",
         help="Enable verbose (debug) output.",
+    )
+    gen_parser.add_argument(
+        "--use-nlp",
+        action="store_true",
+        help="Enable AI-powered documentation generation for missing docstrings.",
+    )
+    gen_parser.add_argument(
+        "--api-key",
+        type=str,
+        default=None,
+        help="Optional API key for the AI model (or set CODESCRIBE_API_KEY env var).",
     )
     gen_parser.set_defaults(func=_handle_generate)
 
@@ -409,7 +452,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Path to the source code directory (default: current directory).",
     )
     analyze_parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
         action="store_true",
         help="Enable verbose (debug) output.",
     )
@@ -426,7 +469,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Overwrite an existing configuration file.",
     )
     init_parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
         action="store_true",
         help="Enable verbose (debug) output.",
     )
