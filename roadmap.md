@@ -1,4 +1,4 @@
-# 🚀 CodeScribe Epic Roadmap: The Custom AI Era
+# CodeScribe Epic Roadmap: The Custom AI Era
 
 ## Phase 1: Foundation (Completed)
 - [x] Set up zero-dependency project structure
@@ -16,7 +16,7 @@
 
 ---
 
-## 🔥 THE PIVOT: Building the CodeScribe Custom LLM 🔥
+## THE PIVOT: Building the CodeScribe Custom LLM
 
 ## Phase 4: Extreme Data Engineering & Pipeline
 - [ ] **Data Scraping Engine:** Build an asynchronous scraper to ingest millions of high-quality open-source repositories from GitHub/GitLab.

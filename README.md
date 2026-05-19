@@ -1,39 +1,31 @@
-#  CodeScribe
+# CodeScribe
 
-[![Status](https://img.shields.io/badge/Status-In%20Development-blue?style=for-the-badge)](https://github.com/yourusername/CodeScribe)
-[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
-[![Python](https://img.shields.io/badge/Python-3.9+-yellow?style=for-the-badge)](https://python.org)
+CodeScribe is a documentation generation tool that analyzes Python code and automatically writes Markdown docs. It uses Google Gemini to generate missing docstrings.
 
-**CodeScribe** is an intelligent, automated documentation engine designed to bridge the gap between complex codebases and human-readable documentation. It seamlessly analyzes source code, understands context, and generates comprehensive documentation that evolves with your project.
+## Features
+- Parses Python AST to find classes and functions.
+- Generates dependency graphs and inheritance trees.
+- Outputs clean Markdown documentation.
+- Uses LLM APIs to write missing docstrings automatically.
 
----
+## Usage
+```bash
+# Set your API key
+export GEMINI_API_KEY="your-api-key"
 
-##  Features
+# Generate docs for your project
+python -m src.cli generate --use-nlp -i ./src -o ./docs
+```
 
-- **Automated Documentation**: Instantly generates docs from source code, reducing manual effort.
-- **Deep Code Analysis**: Goes beyond simple parsing to understand codebase structure and relationships.
-- **Continuous Updates**: Keeps documentation in sync with code changes automatically.
-- **Developer-Centric CLI**: Simple and powerful command-line interface for easy integration.
+## Roadmap
 
----
+We are currently shifting focus toward building our own custom LLM tailored for codebase comprehension.
 
-##  Development & Roadmap
+- **Phase 1-3:** Core CLI, AST Parsing, and Markdown Generation (Completed)
+- **Phase 4:** Data Engineering & Pipeline
+- **Phase 5:** Custom LLM Architecture
+- **Phase 6:** Pretraining & RLHF
+- **Phase 7:** Local Inference & Quantization
+- **Phase 8:** Autonomous Agent Capabilities
 
-We are currently in the active development phase.
-
-### Phase 1: Foundation 
-- [x] **Project Initialization**: Repository structure and core configuration.
-- [x] **Environment Setup**: Dependency management and security protocols.
-
-### Phase 2: Core Engine 
-- [ ] **Parser Implementation**: Building the efficient code ingestion module.
-- [ ] **Analysis System**: Developing the logic to map code relationships.
-- [ ] **Generator Engine**: Creating the system to output human-friendly text.
-
-### Phase 3: Integration & Launch 
-- [ ] **CLI Development**: Interactive command-line tools.
-- [ ] **CI/CD Integration**: Automated workflows and pipeline integration.
-- [ ] **Public Beta**: First major release.
-
-
-*CodeScribe is currently under active development. Stay tuned for updates.*
+*See `roadmap.md` for full details.*
