@@ -24,9 +24,10 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from src.parser.base import ModuleInfo, ParseResult
+from src.parser.base import ModuleInfo, ParseResult, FunctionInfo, ClassInfo
 from src.analyzer.models import AnalysisResult, ModuleMetrics
 from src.generator import templates
+from src.generator.nlp import NLPEngine
 
 logger = logging.getLogger("CodeScribe")
 
@@ -42,12 +43,15 @@ class DocGenerator:
     Attributes:
         _project_name: The name used in documentation headers.
         _include_private: Whether to document private/protected elements.
+        _nlp_engine: The NLP Engine for enhancing docstrings.
     """
 
     def __init__(
         self,
         project_name: str = "Project",
         include_private: bool = False,
+        use_nlp: bool = False,
+        api_key: Optional[str] = None,
     ) -> None:
         """Initialize the generator.
 
@@ -55,10 +59,12 @@ class DocGenerator:
             project_name: Name of the project for documentation headers.
             include_private: If True, includes private and protected
                            elements in the generated documentation.
-                           Defaults to False (public API only).
+            use_nlp: Whether to enable AI-powered documentation generation.
+            api_key: Optional API key for the AI model.
         """
         self._project_name = project_name
         self._include_private = include_private
+        self._nlp_engine = NLPEngine(api_key=api_key, enabled=use_nlp)
 
     def generate(
         self,
@@ -281,6 +287,7 @@ class DocGenerator:
             return mod
 
         from src.parser.base import Visibility
+        import dataclasses
 
         filtered = ModuleInfo(
             file_path=mod.file_path,
@@ -289,14 +296,49 @@ class DocGenerator:
             global_variables=mod.global_variables,
         )
 
-        filtered.functions = [
-            f for f in mod.functions
-            if f.visibility == Visibility.PUBLIC
-        ]
+        # Filter functions and optionally enhance docstrings
+        filtered.functions = []
+        for f in mod.functions:
+            if not self._include_private and f.visibility != Visibility.PUBLIC:
+                continue
+            if not f.docstring and self._nlp_engine.enabled:
+                summary = self._nlp_engine.generate_function_summary(f, mod.file_path.name)
+                if summary:
+                    # Note: Auto-generated summaries get a clear prefix
+                    f = dataclasses.replace(f, docstring=f"**[AI Generated]** {summary}")
+            filtered.functions.append(f)
 
-        filtered.classes = [
-            c for c in mod.classes
-            if c.visibility == Visibility.PUBLIC
-        ]
+        # Filter classes and optionally enhance docstrings
+        filtered.classes = []
+        for c in mod.classes:
+            if not self._include_private and c.visibility != Visibility.PUBLIC:
+                continue
+            
+            # Enhance class docstring
+            if not c.docstring and self._nlp_engine.enabled:
+                summary = self._nlp_engine.generate_class_summary(c, mod.file_path.name)
+                if summary:
+                    c = dataclasses.replace(c, docstring=f"**[AI Generated]** {summary}")
+            
+            # Enhance method docstrings
+            enhanced_methods = []
+            for m in c.methods:
+                if not self._include_private and m.visibility != Visibility.PUBLIC:
+                    continue
+                if not m.docstring and self._nlp_engine.enabled:
+                    # We can use generate_function_summary for methods as they share structure
+                    m_as_func = FunctionInfo(
+                        name=m.name, parameters=m.parameters, return_type=m.return_type,
+                        decorators=m.decorators, visibility=m.visibility
+                    )
+                    summary = self._nlp_engine.generate_function_summary(m_as_func, mod.file_path.name)
+                    if summary:
+                        m = dataclasses.replace(m, docstring=f"**[AI Generated]** {summary}")
+                enhanced_methods.append(m)
+            
+            if enhanced_methods != c.methods:
+                c = dataclasses.replace(c, methods=enhanced_methods)
+                
+            filtered.classes.append(c)
 
         return filtered
