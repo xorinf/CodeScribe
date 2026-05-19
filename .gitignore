@@ -15,7 +15,7 @@ __pycache__/
 *$py.class
 *.so
 .Python
-
+temp/
 # ------------------------------------------
 # Python - Distribution and Packaging
 # ------------------------------------------
