@@ -306,7 +306,7 @@ def render_function(func: FunctionInfo) -> str:
     lines = [
         "#### `{}`".format(func.name),
         "",
-        "```python",
+        "```",
     ]
 
     # Decorators
@@ -314,7 +314,7 @@ def render_function(func: FunctionInfo) -> str:
         for dec in func.decorators:
             lines.append("@{}".format(dec))
 
-    lines.append("def {}{}{}".format(func.name, sig, ret))
+    lines.append("{}{}{}".format(func.name, sig, ret))
     lines.append("```")
     lines.append("")
 
@@ -379,7 +379,7 @@ def render_class(cls: ClassInfo) -> str:
     lines = [
         "#### `{}`".format(cls.name),
         "",
-        "```python",
+        "```",
     ]
 
     if cls.decorators:
@@ -448,14 +448,14 @@ def render_method(method: MethodInfo) -> str:
     lines = [
         "##### `{}`".format(method.name),
         "",
-        "```python",
+        "```",
     ]
 
     if method.decorators:
         for dec in method.decorators:
             lines.append("@{}".format(dec))
 
-    lines.append("def {}{}{}".format(method.name, sig, ret))
+    lines.append("{}{}{}".format(method.name, sig, ret))
     lines.append("```")
     lines.append("")
 
