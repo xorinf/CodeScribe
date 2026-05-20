@@ -333,6 +333,58 @@ def _handle_scrape(args: argparse.Namespace) -> None:
         logger.error("Scraping failed: %s", e)
 
 
+def _handle_cleanse(args: argparse.Namespace) -> None:
+    """Handler for the 'cleanse' subcommand."""
+    config = _load_config()
+    verbose = args.verbose or config.get("verbose", False)
+    logger = _setup_logger(verbose)
+
+    input_dir = Path(args.input_dir).resolve()
+    output_file = Path(args.output_file).resolve()
+    
+    languages = [lang.strip() for lang in args.languages.split(",")]
+
+    logger.info("Starting Data Cleansing Engine...")
+    logger.info("Input Directory: %s", input_dir)
+    logger.info("Output File: %s", output_file)
+    logger.info("Allowed Languages: %s", languages)
+
+    from src.cleanser.pipeline import CleanserPipeline
+    
+    pipeline = CleanserPipeline(languages=languages)
+    try:
+        pipeline.process_directory(input_dir, output_file)
+    except KeyboardInterrupt:
+        logger.warning("Cleansing interrupted by user.")
+    except Exception as e:
+        logger.error("Cleansing failed: %s", e)
+
+
+def _handle_tokenize(args: argparse.Namespace) -> None:
+    """Handler for the 'tokenize' subcommand."""
+    config = _load_config()
+    verbose = args.verbose or config.get("verbose", False)
+    logger = _setup_logger(verbose)
+
+    dataset_path = Path(args.dataset).resolve()
+    output_path = Path(args.output).resolve()
+    
+    logger.info("Starting Custom Tokenizer Training...")
+    logger.info("Dataset: %s", dataset_path)
+    logger.info("Vocab Size: %d", args.vocab_size)
+    logger.info("Output Tokenizer: %s", output_path)
+
+    from src.tokenizer.trainer import CodeTokenizerTrainer
+    
+    trainer = CodeTokenizerTrainer(vocab_size=args.vocab_size)
+    try:
+        trainer.train(dataset_path=dataset_path, output_path=output_path)
+    except KeyboardInterrupt:
+        logger.warning("Training interrupted by user.")
+    except Exception as e:
+        logger.error("Training failed: %s", e)
+
+
 def _handle_init(args: argparse.Namespace) -> None:
     """Handler for the 'init' subcommand.
 
@@ -558,6 +610,66 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Enable verbose (debug) output."
     )
     scrape_parser.set_defaults(func=_handle_scrape)
+
+    # -- cleanse ---------------------------------------------------------
+    cleanse_parser = subparsers.add_parser(
+        "cleanse",
+        help="Cleanse scraped data from zipballs.",
+    )
+    cleanse_parser.add_argument(
+        "--input-dir",
+        type=str,
+        default="./scraped_data",
+        help="Directory containing scraped zip files (default: ./scraped_data)."
+    )
+    cleanse_parser.add_argument(
+        "--output-file",
+        type=str,
+        default="./dataset.jsonl",
+        help="Output JSONL file path (default: ./dataset.jsonl)."
+    )
+    cleanse_parser.add_argument(
+        "--languages",
+        type=str,
+        default=".py",
+        help="Comma-separated file extensions to process (default: .py)."
+    )
+    cleanse_parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Enable verbose (debug) output."
+    )
+    cleanse_parser.set_defaults(func=_handle_cleanse)
+
+    # -- tokenize --------------------------------------------------------
+    tokenize_parser = subparsers.add_parser(
+        "tokenize",
+        help="Train a Byte-Level BPE tokenizer on a JSONL dataset.",
+    )
+    tokenize_parser.add_argument(
+        "--dataset",
+        type=str,
+        required=True,
+        help="Path to the cleansed JSONL dataset."
+    )
+    tokenize_parser.add_argument(
+        "--vocab-size",
+        type=int,
+        default=50000,
+        help="Target vocabulary size (default: 50000)."
+    )
+    tokenize_parser.add_argument(
+        "--output",
+        type=str,
+        default="./tokenizer.json",
+        help="Path to save the trained tokenizer (default: ./tokenizer.json)."
+    )
+    tokenize_parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Enable verbose (debug) output."
+    )
+    tokenize_parser.set_defaults(func=_handle_tokenize)
 
     # -- init ------------------------------------------------------------
     init_parser = subparsers.add_parser(

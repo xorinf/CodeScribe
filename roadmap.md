@@ -19,9 +19,9 @@
 ## THE PIVOT: Building the CodeScribe Custom LLM
 
 ## Phase 4: Extreme Data Engineering & Pipeline
-- [ ] **Data Scraping Engine:** Build an asynchronous scraper to ingest millions of high-quality open-source repositories from GitHub/GitLab.
-- [ ] **Data Cleansing:** Implement heuristic filters to remove low-quality code, boilerplate, and sensitive secrets (PII).
-- [ ] **Custom Tokenizer:** Train a highly optimized Byte-Pair Encoding (BPE) tokenizer specifically designed for programming languages, preserving whitespace and syntax semantics.
+- [x] **Data Scraping Engine:** Build an asynchronous scraper to ingest millions of high-quality open-source repositories from GitHub/GitLab.
+- [x] **Data Cleansing:** Implement heuristic filters to remove low-quality code, boilerplate, and sensitive secrets (PII).
+- [x] **Custom Tokenizer:** Train a highly optimized Byte-Pair Encoding (BPE) tokenizer specifically designed for programming languages, preserving whitespace and syntax semantics.
 - [ ] **Vector Database:** Set up a massive local vector store (e.g., Milvus or Qdrant) to handle billions of code embeddings.
 
 ## Phase 5: Custom LLM Architecture Design
