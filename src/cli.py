@@ -287,6 +287,52 @@ def _handle_analyze(args: argparse.Namespace) -> None:
     logger.info("Deep analysis pending implementation (Phase 2).")
 
 
+def _handle_scrape(args: argparse.Namespace) -> None:
+    """Handler for the 'scrape' subcommand."""
+    config = _load_config()
+    verbose = args.verbose or config.get("verbose", False)
+    logger = _setup_logger(verbose)
+
+    # Resolve output directory
+    output_dir = Path(args.output_dir).resolve()
+    
+    tokens = []
+    if args.tokens:
+        tokens = [t.strip() for t in args.tokens.split(",")]
+
+    logger.info("Starting Data Scraping Engine...")
+    logger.info("Platform: %s", args.platform)
+    logger.info("Language: %s", args.language)
+    logger.info("Output Directory: %s", output_dir)
+
+    # Build the query
+    query_parts = []
+    if args.language:
+        query_parts.append(f"language:{args.language}")
+    query_parts.append(f"stars:>={args.min_stars}")
+    query = " ".join(query_parts)
+
+    from src.scraper.engine import AsyncScraperEngine
+    import asyncio
+    
+    engine = AsyncScraperEngine(tokens=tokens)
+    
+    try:
+        asyncio.run(
+            engine.ingest_repositories(
+                platform=args.platform,
+                query=query,
+                output_dir=output_dir,
+                limit=args.limit,
+                download_source=not args.no_download
+            )
+        )
+    except KeyboardInterrupt:
+        logger.warning("Scraping interrupted by user.")
+    except Exception as e:
+        logger.error("Scraping failed: %s", e)
+
+
 def _handle_init(args: argparse.Namespace) -> None:
     """Handler for the 'init' subcommand.
 
@@ -458,6 +504,60 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Enable verbose (debug) output.",
     )
     analyze_parser.set_defaults(func=_handle_analyze)
+
+    # -- scrape ----------------------------------------------------------
+    scrape_parser = subparsers.add_parser(
+        "scrape",
+        help="Asynchronously scrape open-source repositories.",
+    )
+    scrape_parser.add_argument(
+        "--platform",
+        type=str,
+        choices=["github", "gitlab"],
+        default="github",
+        help="Platform to scrape from (default: github)."
+    )
+    scrape_parser.add_argument(
+        "--language",
+        type=str,
+        default="python",
+        help="Filter by language (default: python)."
+    )
+    scrape_parser.add_argument(
+        "--min-stars",
+        type=int,
+        default=100,
+        help="Minimum stars for repositories (default: 100)."
+    )
+    scrape_parser.add_argument(
+        "--limit",
+        type=int,
+        default=10,
+        help="Maximum number of repositories to ingest (default: 10)."
+    )
+    scrape_parser.add_argument(
+        "--output-dir",
+        type=str,
+        default="./scraped_data",
+        help="Directory to save scraped data and zipballs (default: ./scraped_data)."
+    )
+    scrape_parser.add_argument(
+        "--tokens",
+        type=str,
+        default=None,
+        help="Comma-separated API tokens for rate limit rotation."
+    )
+    scrape_parser.add_argument(
+        "--no-download",
+        action="store_true",
+        help="Only fetch metadata, do not download source code zipballs."
+    )
+    scrape_parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Enable verbose (debug) output."
+    )
+    scrape_parser.set_defaults(func=_handle_scrape)
 
     # -- init ------------------------------------------------------------
     init_parser = subparsers.add_parser(
