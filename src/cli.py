@@ -189,7 +189,6 @@ def _handle_generate(args: argparse.Namespace) -> None:
     # ------------------------------------------------------------------
     logger.info("Step 1/3 -- Parsing source files...")
     start = time.time()
-    
     from src.parser.python_parser import PythonParser
     parser = PythonParser()
     parse_result = parser.parse_directory(input_dir, exclude_dirs=config.get("exclude", []))
@@ -211,11 +210,11 @@ def _handle_generate(args: argparse.Namespace) -> None:
     # ------------------------------------------------------------------
     logger.info("Step 2/3 -- Analyzing code structure...")
     start = time.time()
-    
+
     from src.analyzer.analyzer import SemanticAnalyzer
     analyzer = SemanticAnalyzer(project_root=input_dir)
     analysis = analyzer.analyze(parse_result)
-    
+
     logger.info(
         "  Analyzed %d classes and %d dependencies in %.2fs",
         len(analysis.inheritance_tree.nodes),
@@ -228,23 +227,23 @@ def _handle_generate(args: argparse.Namespace) -> None:
     # ------------------------------------------------------------------
     logger.info("Step 3/3 -- Generating documentation...")
     start = time.time()
-    
+
     from src.generator.generator import DocGenerator
-    
+
     use_nlp = getattr(args, "use_nlp", False)
     api_key = getattr(args, "api_key", None)
-    
+
     generator = DocGenerator(
         project_name=APP_NAME,
         include_private=config.get("include_private", False),
         use_nlp=use_nlp,
         api_key=api_key
     )
-    
+
     files = generator.generate(
         parse_result, analysis, output_dir, single_file=False
     )
-    
+
     logger.info(
         "  Generated %d file(s) in %.2fs",
         len(files),
