@@ -190,14 +190,17 @@ def _handle_generate(args: argparse.Namespace) -> None:
     logger.info("Step 1/3 -- Parsing source files...")
     start = time.time()
     
+    from src.parser.registry import ParserRegistry
     from src.parser.python_parser import PythonParser
-    parser = PythonParser()
-    parse_result = parser.parse_directory(input_dir, exclude_dirs=config.get("exclude", []))
+
+    registry = ParserRegistry()
+    registry.register(PythonParser())
+
+    parse_result = registry.parse_all(input_dir, exclude_dirs=config.get("exclude", []))
     elapsed = time.time() - start
 
     if not parse_result.modules:
-        logger.warning("No supported source files found in %s", input_dir)
-        logger.warning("Supported languages: %s", ", ".join(SUPPORTED_LANGUAGES))
+        logger.warning("No source files found in %s", input_dir)
         sys.exit(0)
 
     logger.info(
@@ -446,10 +449,6 @@ def _collect_source_files(
     Returns:
         A sorted list of Path objects pointing to source files.
     """
-    valid_extensions: set[str] = set()
-    for lang in SUPPORTED_LANGUAGES:
-        valid_extensions.update(_LANGUAGE_EXTENSIONS.get(lang, []))
-
     collected: list[Path] = []
 
     for dirpath, dirnames, filenames in os.walk(root):
@@ -458,8 +457,10 @@ def _collect_source_files(
             d for d in dirnames if d not in exclude_dirs
         ]
         for fname in filenames:
-            if Path(fname).suffix in valid_extensions:
-                collected.append(Path(dirpath) / fname)
+            # Skip hidden files or files without extensions typically not source
+            if fname.startswith(".") or not Path(fname).suffix:
+                continue
+            collected.append(Path(dirpath) / fname)
 
     return sorted(collected)
 

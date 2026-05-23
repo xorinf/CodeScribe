@@ -38,7 +38,9 @@ class ParserRegistry:
 
     def __init__(self) -> None:
         """Initialize an empty registry."""
+        from src.parser.universal import UniversalParser
         self._parsers: dict[str, BaseParser] = {}
+        self._fallback_parser = UniversalParser()
 
     def register(self, parser: BaseParser) -> None:
         """Register a parser for all of its supported extensions.
@@ -52,7 +54,7 @@ class ParserRegistry:
         for ext in parser.supported_extensions():
             self._parsers[ext] = parser
 
-    def get_parser_for_file(self, file_path: Path) -> Optional[BaseParser]:
+    def get_parser_for_file(self, file_path: Path) -> BaseParser:
         """Look up the appropriate parser for a given file.
 
         Args:
@@ -60,9 +62,9 @@ class ParserRegistry:
 
         Returns:
             The registered BaseParser for the file's extension,
-            or None if no parser is registered for that extension.
+            or the Universal fallback parser if no parser is registered.
         """
-        return self._parsers.get(file_path.suffix)
+        return self._parsers.get(file_path.suffix, self._fallback_parser)
 
     def get_parser_for_extension(self, extension: str) -> Optional[BaseParser]:
         """Look up the appropriate parser for a given extension string.
@@ -88,32 +90,47 @@ class ParserRegistry:
         self,
         root: Path,
         exclude_dirs: Optional[list[str]] = None,
-    ) -> list[ParseResult]:
-        """Run every registered parser across the given directory.
+    ) -> ParseResult:
+        """Parse all files in the given directory using appropriate parsers.
 
-        Each unique parser instance is invoked once with its own
-        parse_directory call. Duplicate parser references (registered
-        under multiple extensions) are deduplicated.
+        Walks the directory tree, skipping excluded directories, and uses
+        the specific parser registered for each file's extension, or falls
+        back to the UniversalParser.
 
         Args:
             root: The root directory to search.
             exclude_dirs: Directory names to skip during traversal.
 
         Returns:
-            A list of ParseResult objects, one per unique parser.
+            A single combined ParseResult containing all parsed modules.
         """
-        seen: set[int] = set()
-        results: list[ParseResult] = []
+        import os
 
-        for parser in self._parsers.values():
-            pid = id(parser)
-            if pid in seen:
-                continue
-            seen.add(pid)
-            result = parser.parse_directory(root, exclude_dirs)
-            results.append(result)
+        if exclude_dirs is None:
+            exclude_dirs = []
 
-        return results
+        combined_result = ParseResult(language="mixed")
+
+        for dirpath, dirnames, filenames in os.walk(root):
+            dirnames[:] = [d for d in dirnames if d not in exclude_dirs]
+
+            for fname in filenames:
+                if fname.startswith(".") or not Path(fname).suffix:
+                    continue
+
+                fpath = Path(dirpath) / fname
+                parser = self.get_parser_for_file(fpath)
+
+                try:
+                    module_info = parser.parse_file(fpath)
+                    # Exclude empty modules parsed by universal parser
+                    if parser.language() == "universal" and not module_info.classes and not module_info.functions:
+                        continue
+                    combined_result.modules.append(module_info)
+                except Exception as exc:
+                    combined_result.errors.append(f"{fpath}: {exc}")
+
+        return combined_result
 
     def __len__(self) -> int:
         """Return the number of registered extensions."""
