@@ -29,7 +29,7 @@ APP_NAME: str = "CodeScribe"
 APP_VERSION: str = "0.1.0"
 DEFAULT_CONFIG_FILENAME: str = "codescribe.json"
 DEFAULT_OUTPUT_DIR: str = "./docs"
-SUPPORTED_LANGUAGES: list[str] = ["python"]
+SUPPORTED_LANGUAGES: list[str] = ["python", "universal"]
 
 # Default configuration values written by `codescribe init`
 DEFAULT_CONFIG: dict = {
@@ -190,9 +190,15 @@ def _handle_generate(args: argparse.Namespace) -> None:
     logger.info("Step 1/3 -- Parsing source files...")
     start = time.time()
     
+    from src.parser.registry import ParserRegistry
     from src.parser.python_parser import PythonParser
-    parser = PythonParser()
-    parse_result = parser.parse_directory(input_dir, exclude_dirs=config.get("exclude", []))
+    from src.parser.universal_parser import UniversalParser
+
+    registry = ParserRegistry()
+    registry.register(PythonParser())
+    registry.register(UniversalParser())
+
+    parse_result = registry.parse_all(input_dir, exclude_dirs=config.get("exclude", []))
     elapsed = time.time() - start
 
     if not parse_result.modules:
@@ -271,7 +277,15 @@ def _handle_analyze(args: argparse.Namespace) -> None:
 
     logger.info("Analyzing codebase at: %s", input_dir)
 
-    source_files = _collect_source_files(input_dir, config.get("exclude", []))
+    from src.parser.registry import ParserRegistry
+    from src.parser.python_parser import PythonParser
+    from src.parser.universal_parser import UniversalParser
+
+    registry = ParserRegistry()
+    registry.register(PythonParser())
+    registry.register(UniversalParser())
+
+    source_files = _collect_source_files(input_dir, config.get("exclude", []), registry)
 
     if not source_files:
         logger.warning("No supported source files found in %s", input_dir)
@@ -428,35 +442,29 @@ def _handle_version(args: argparse.Namespace) -> None:
 # ---------------------------------------------------------------------------
 
 # Map of supported language names to their file extensions.
-_LANGUAGE_EXTENSIONS: dict[str, list[str]] = {
-    "python": [".py"],
-}
+
 
 
 def _collect_source_files(
     root: Path,
     exclude_dirs: list[str],
+    registry,
 ) -> list[Path]:
     """Walk the directory tree and collect supported source files.
 
     Args:
         root: The root directory to search.
         exclude_dirs: Directory names to skip during traversal.
+        registry: The ParserRegistry instance containing supported extensions.
 
     Returns:
         A sorted list of Path objects pointing to source files.
     """
-    valid_extensions: set[str] = set()
-    for lang in SUPPORTED_LANGUAGES:
-        valid_extensions.update(_LANGUAGE_EXTENSIONS.get(lang, []))
-
+    valid_extensions = set(registry.supported_extensions())
     collected: list[Path] = []
 
     for dirpath, dirnames, filenames in os.walk(root):
-        # Prune excluded directories in-place so os.walk skips them.
-        dirnames[:] = [
-            d for d in dirnames if d not in exclude_dirs
-        ]
+        dirnames[:] = [d for d in dirnames if d not in exclude_dirs]
         for fname in filenames:
             if Path(fname).suffix in valid_extensions:
                 collected.append(Path(dirpath) / fname)
