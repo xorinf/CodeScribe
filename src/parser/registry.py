@@ -88,32 +88,42 @@ class ParserRegistry:
         self,
         root: Path,
         exclude_dirs: Optional[list[str]] = None,
-    ) -> list[ParseResult]:
-        """Run every registered parser across the given directory.
+    ) -> ParseResult:
+        """Walk the given directory and parse all supported files.
 
-        Each unique parser instance is invoked once with its own
-        parse_directory call. Duplicate parser references (registered
-        under multiple extensions) are deduplicated.
+        Uses the registered parsers to process each file appropriately based
+        on its extension.
 
         Args:
             root: The root directory to search.
             exclude_dirs: Directory names to skip during traversal.
 
         Returns:
-            A list of ParseResult objects, one per unique parser.
+            A single ParseResult object containing modules from all languages.
         """
-        seen: set[int] = set()
-        results: list[ParseResult] = []
+        import os
 
-        for parser in self._parsers.values():
-            pid = id(parser)
-            if pid in seen:
-                continue
-            seen.add(pid)
-            result = parser.parse_directory(root, exclude_dirs)
-            results.append(result)
+        if exclude_dirs is None:
+            exclude_dirs = []
 
-        return results
+        result = ParseResult(language="mixed")
+
+        for dirpath, dirnames, filenames in os.walk(root):
+            dirnames[:] = [d for d in dirnames if d not in exclude_dirs]
+
+            for fname in filenames:
+                fpath = Path(dirpath) / fname
+                parser = self.get_parser_for_file(fpath)
+
+                if parser:
+                    try:
+                        module_info = parser.parse_file(fpath)
+                        result.modules.append(module_info)
+                    except Exception as exc:
+                        result.errors.append(f"{fpath}: {exc}")
+
+        return result
+
 
     def __len__(self) -> int:
         """Return the number of registered extensions."""
