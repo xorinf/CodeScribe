@@ -14,15 +14,18 @@ Responsibilities:
     4. Aggregate codebase-wide statistics.
 
 Usage:
-    from src.parser.python_parser import PythonParser
+    from src.parser.registry import ParserRegistry
     from src.analyzer.analyzer import SemanticAnalyzer
 
-    parser = PythonParser()
-    parse_result = parser.parse_directory(Path("./src"))
+    registry = ParserRegistry()
+    # Assuming parsers are registered
+    parse_results = registry.parse_all(Path("./src"))
 
+    # Combine results if needed or analyze one
     analyzer = SemanticAnalyzer()
-    analysis = analyzer.analyze(parse_result)
-    print(analysis.codebase_stats)
+    if parse_results:
+        analysis = analyzer.analyze(parse_results[0])
+        print(analysis.codebase_stats)
 
 ### Module Statistics
 
@@ -32,7 +35,7 @@ Usage:
 | Classes | 1 |
 | Methods | 9 |
 | Imports | 7 |
-| Lines | 465 |
+| Lines | 468 |
 | Doc Coverage | 100% |
 
 ### Imports
@@ -59,7 +62,7 @@ from src.analyzer.models import AnalysisResult, CodebaseStats, DependencyEdge, D
 class SemanticAnalyzer
 ```
 
-(public) | Lines 52-465
+(public) | Lines 55-468
 
 Analyzes parsed code to discover relationships and compute metrics.
 

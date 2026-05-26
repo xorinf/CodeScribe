@@ -11,15 +11,18 @@ Responsibilities:
     4. Aggregate codebase-wide statistics.
 
 Usage:
-    from src.parser.python_parser import PythonParser
+    from src.parser.registry import ParserRegistry
     from src.analyzer.analyzer import SemanticAnalyzer
 
-    parser = PythonParser()
-    parse_result = parser.parse_directory(Path("./src"))
+    registry = ParserRegistry()
+    # Assuming parsers are registered
+    parse_results = registry.parse_all(Path("./src"))
 
+    # Combine results if needed or analyze one
     analyzer = SemanticAnalyzer()
-    analysis = analyzer.analyze(parse_result)
-    print(analysis.codebase_stats)
+    if parse_results:
+        analysis = analyzer.analyze(parse_results[0])
+        print(analysis.codebase_stats)
 """
 
 from __future__ import annotations

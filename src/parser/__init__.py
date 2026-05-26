@@ -10,5 +10,6 @@ Architecture:
                      language-specific parser must implement.
     - registry.py  : A central registry that maps file extensions to
                      their corresponding parser implementations.
-    - python_parser.py : (Future) Concrete parser for Python source files.
+    - python_parser.py : Concrete parser for Python source files.
+    - universal_parser.py : Fallback parser using regex for other languages.
 """
