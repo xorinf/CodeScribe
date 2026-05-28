@@ -11,4 +11,10 @@ Architecture:
     - registry.py  : A central registry that maps file extensions to
                      their corresponding parser implementations.
     - python_parser.py : (Future) Concrete parser for Python source files.
+    - universal_parser.py : Fallback parser for non-Python languages.
 """
+
+from src.parser.python_parser import PythonParser
+from src.parser.universal_parser import UniversalParser
+
+__all__ = ["PythonParser", "UniversalParser"]
