@@ -29,14 +29,13 @@ APP_NAME: str = "CodeScribe"
 APP_VERSION: str = "0.1.0"
 DEFAULT_CONFIG_FILENAME: str = "codescribe.json"
 DEFAULT_OUTPUT_DIR: str = "./docs"
-SUPPORTED_LANGUAGES: list[str] = ["python"]
 
 # Default configuration values written by `codescribe init`
 DEFAULT_CONFIG: dict = {
     "version": APP_VERSION,
     "input": ".",
     "output": DEFAULT_OUTPUT_DIR,
-    "languages": SUPPORTED_LANGUAGES,
+    "languages": ["python", "universal"],
     "exclude": [
         "__pycache__",
         ".git",
@@ -190,14 +189,26 @@ def _handle_generate(args: argparse.Namespace) -> None:
     logger.info("Step 1/3 -- Parsing source files...")
     start = time.time()
     
+    from src.parser.registry import ParserRegistry
     from src.parser.python_parser import PythonParser
-    parser = PythonParser()
-    parse_result = parser.parse_directory(input_dir, exclude_dirs=config.get("exclude", []))
+    from src.parser.universal_parser import UniversalParser
+    from src.parser.base import ParseResult
+
+    registry = ParserRegistry()
+    registry.register(PythonParser())
+    registry.register(UniversalParser())
+
+    results = registry.parse_all(input_dir, exclude_dirs=config.get("exclude", []))
+
+    parse_result = ParseResult(language="mixed")
+    for r in results:
+        parse_result.modules.extend(r.modules)
+        parse_result.errors.extend(r.errors)
+
     elapsed = time.time() - start
 
     if not parse_result.modules:
         logger.warning("No supported source files found in %s", input_dir)
-        logger.warning("Supported languages: %s", ", ".join(SUPPORTED_LANGUAGES))
         sys.exit(0)
 
     logger.info(
@@ -271,20 +282,43 @@ def _handle_analyze(args: argparse.Namespace) -> None:
 
     logger.info("Analyzing codebase at: %s", input_dir)
 
-    source_files = _collect_source_files(input_dir, config.get("exclude", []))
+    from src.parser.registry import ParserRegistry
+    from src.parser.python_parser import PythonParser
+    from src.parser.universal_parser import UniversalParser
+    from src.parser.base import ParseResult
 
-    if not source_files:
+    registry = ParserRegistry()
+    registry.register(PythonParser())
+    registry.register(UniversalParser())
+
+    results = registry.parse_all(input_dir, exclude_dirs=config.get("exclude", []))
+
+    parse_result = ParseResult(language="mixed")
+    for r in results:
+        parse_result.modules.extend(r.modules)
+        parse_result.errors.extend(r.errors)
+
+    if not parse_result.modules:
         logger.warning("No supported source files found in %s", input_dir)
         sys.exit(0)
 
-    logger.info("Detected %d source file(s):", len(source_files))
-    for f in source_files:
-        rel = f.relative_to(input_dir)
-        size = f.stat().st_size
+    logger.info("Parsed %d source file(s):", len(parse_result.modules))
+    for m in parse_result.modules:
+        try:
+            rel = m.file_path.relative_to(input_dir)
+        except ValueError:
+            rel = m.file_path
+        size = m.file_path.stat().st_size if m.file_path.exists() else 0
         logger.info("  %-40s  %d bytes", str(rel), size)
 
-    # TODO: Wire into src.parser and src.analyzer once implemented.
-    logger.info("Deep analysis pending implementation (Phase 2).")
+    from src.analyzer.analyzer import SemanticAnalyzer
+    analyzer = SemanticAnalyzer(project_root=input_dir)
+    analysis = analyzer.analyze(parse_result)
+
+    logger.info("Analysis complete.")
+    logger.info("  Total Modules : %d", analysis.codebase_stats.total_modules)
+    logger.info("  Total Classes : %d", analysis.codebase_stats.total_classes)
+    logger.info("  Total Functions: %d", analysis.codebase_stats.total_functions)
 
 
 def _handle_scrape(args: argparse.Namespace) -> None:
@@ -446,9 +480,15 @@ def _collect_source_files(
     Returns:
         A sorted list of Path objects pointing to source files.
     """
-    valid_extensions: set[str] = set()
-    for lang in SUPPORTED_LANGUAGES:
-        valid_extensions.update(_LANGUAGE_EXTENSIONS.get(lang, []))
+    from src.parser.registry import ParserRegistry
+    from src.parser.python_parser import PythonParser
+    from src.parser.universal_parser import UniversalParser
+
+    registry = ParserRegistry()
+    registry.register(PythonParser())
+    registry.register(UniversalParser())
+
+    valid_extensions = set(registry.supported_extensions())
 
     collected: list[Path] = []
 
