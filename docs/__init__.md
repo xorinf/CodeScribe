@@ -2,17 +2,19 @@
 
 ## `__init__.py`
 
-src.analyzer -- Semantic Analysis Package.
+src.parser -- Code Parsing and AST Generation Package.
 
-This package analyzes parsed code structures to understand relationships,
-dependencies, and architectural patterns. It produces structured analysis
-results consumed by the generator module.
+This package is responsible for ingesting source code files and
+producing structured, language-agnostic representations (parse results)
+that downstream modules (analyzer, generator) can consume.
 
-Public API:
-    - SemanticAnalyzer: The main analysis engine.
-    - AnalysisResult: Top-level output container.
-    - DependencyGraph, InheritanceTree: Relationship models.
-    - ModuleMetrics, CodebaseStats: Quantitative outputs.
+Architecture:
+    - base.py      : Abstract interfaces and data models that every
+                     language-specific parser must implement.
+    - registry.py  : A central registry that maps file extensions to
+                     their corresponding parser implementations.
+    - python_parser.py : (Future) Concrete parser for Python source files.
+    - universal.py : Universal parser for extracting classes and functions from various non-Python languages.
 
 ### Module Statistics
 
@@ -21,15 +23,14 @@ Public API:
 | Functions | 0 |
 | Classes | 0 |
 | Methods | 0 |
-| Imports | 2 |
-| Lines | 31 |
+| Imports | 1 |
+| Lines | 19 |
 | Doc Coverage | 0% |
 
 ### Imports
 
 ```python
-from src.analyzer.analyzer import SemanticAnalyzer
-from src.analyzer.models import AnalysisResult, CodebaseStats, DependencyGraph, InheritanceTree, ModuleMetrics
+from src.parser.universal import UniversalParser
 ```
 
 ### Module-Level Variables
