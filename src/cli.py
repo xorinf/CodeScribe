@@ -29,7 +29,10 @@ APP_NAME: str = "CodeScribe"
 APP_VERSION: str = "0.1.0"
 DEFAULT_CONFIG_FILENAME: str = "codescribe.json"
 DEFAULT_OUTPUT_DIR: str = "./docs"
-SUPPORTED_LANGUAGES: list[str] = ["python"]
+SUPPORTED_LANGUAGES: list[str] = [
+    "python", "js", "ts", "java", "c", "cpp", "cs", "rb", "go", "rs", "php",
+    "swift", "kt", "scala", "m", "h", "hpp"
+]
 
 # Default configuration values written by `codescribe init`
 DEFAULT_CONFIG: dict = {
@@ -190,9 +193,27 @@ def _handle_generate(args: argparse.Namespace) -> None:
     logger.info("Step 1/3 -- Parsing source files...")
     start = time.time()
     
+    from src.parser.registry import ParserRegistry
     from src.parser.python_parser import PythonParser
-    parser = PythonParser()
-    parse_result = parser.parse_directory(input_dir, exclude_dirs=config.get("exclude", []))
+    from src.parser.universal_parser import UniversalParser
+    from src.parser.base import ParseResult
+
+    registry = ParserRegistry()
+    registry.register(PythonParser())
+    registry.register(UniversalParser())
+
+    results = registry.parse_all(input_dir, exclude_dirs=config.get("exclude", []))
+
+    # Combine results into a single ParseResult
+    parse_result = ParseResult()
+    for res in results:
+        parse_result.modules.extend(res.modules)
+        parse_result.errors.extend(res.errors)
+
+    # We assume 'universal' or 'python' based on first module or keep it simple
+    if results:
+        parse_result.language = results[0].language
+
     elapsed = time.time() - start
 
     if not parse_result.modules:
@@ -430,6 +451,22 @@ def _handle_version(args: argparse.Namespace) -> None:
 # Map of supported language names to their file extensions.
 _LANGUAGE_EXTENSIONS: dict[str, list[str]] = {
     "python": [".py"],
+    "js": [".js"],
+    "ts": [".ts"],
+    "java": [".java"],
+    "c": [".c"],
+    "cpp": [".cpp"],
+    "cs": [".cs"],
+    "rb": [".rb"],
+    "go": [".go"],
+    "rs": [".rs"],
+    "php": [".php"],
+    "swift": [".swift"],
+    "kt": [".kt"],
+    "scala": [".scala"],
+    "m": [".m"],
+    "h": [".h"],
+    "hpp": [".hpp"],
 }
 
 
