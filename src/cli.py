@@ -29,7 +29,7 @@ APP_NAME: str = "CodeScribe"
 APP_VERSION: str = "0.1.0"
 DEFAULT_CONFIG_FILENAME: str = "codescribe.json"
 DEFAULT_OUTPUT_DIR: str = "./docs"
-SUPPORTED_LANGUAGES: list[str] = ["python"]
+SUPPORTED_LANGUAGES: list[str] = ["python", "universal"]
 
 # Default configuration values written by `codescribe init`
 DEFAULT_CONFIG: dict = {
@@ -190,9 +190,23 @@ def _handle_generate(args: argparse.Namespace) -> None:
     logger.info("Step 1/3 -- Parsing source files...")
     start = time.time()
     
+    from src.parser.registry import ParserRegistry
     from src.parser.python_parser import PythonParser
-    parser = PythonParser()
-    parse_result = parser.parse_directory(input_dir, exclude_dirs=config.get("exclude", []))
+    from src.parser.universal_parser import UniversalParser
+
+    registry = ParserRegistry()
+    registry.register(PythonParser())
+    registry.register(UniversalParser())
+
+    results = registry.parse_all(input_dir, exclude_dirs=config.get("exclude", []))
+
+    # Merge ParseResults into a single ParseResult
+    from src.parser.base import ParseResult
+    parse_result = ParseResult(language="mixed")
+    for res in results:
+        parse_result.modules.extend(res.modules)
+        parse_result.errors.extend(res.errors)
+
     elapsed = time.time() - start
 
     if not parse_result.modules:
@@ -283,8 +297,28 @@ def _handle_analyze(args: argparse.Namespace) -> None:
         size = f.stat().st_size
         logger.info("  %-40s  %d bytes", str(rel), size)
 
-    # TODO: Wire into src.parser and src.analyzer once implemented.
-    logger.info("Deep analysis pending implementation (Phase 2).")
+    from src.parser.registry import ParserRegistry
+    from src.parser.python_parser import PythonParser
+    from src.parser.universal_parser import UniversalParser
+
+    registry = ParserRegistry()
+    registry.register(PythonParser())
+    registry.register(UniversalParser())
+
+    results = registry.parse_all(input_dir, exclude_dirs=config.get("exclude", []))
+
+    from src.parser.base import ParseResult
+    parse_result = ParseResult(language="mixed")
+    for res in results:
+        parse_result.modules.extend(res.modules)
+        parse_result.errors.extend(res.errors)
+
+    from src.analyzer.analyzer import SemanticAnalyzer
+    analyzer = SemanticAnalyzer(project_root=input_dir)
+    analysis = analyzer.analyze(parse_result)
+
+    logger.info("Deep analysis complete.")
+    logger.info("  Analyzed %d classes and %d dependencies", len(analysis.inheritance_tree.nodes), len(analysis.dependency_graph.edges))
 
 
 def _handle_scrape(args: argparse.Namespace) -> None:
@@ -430,6 +464,12 @@ def _handle_version(args: argparse.Namespace) -> None:
 # Map of supported language names to their file extensions.
 _LANGUAGE_EXTENSIONS: dict[str, list[str]] = {
     "python": [".py"],
+    "universal": [
+        ".js", ".jsx", ".ts", ".tsx",
+        ".java", ".cpp", ".c", ".h", ".cs",
+        ".go", ".rb", ".php", ".swift", ".kt",
+        ".rs", ".m", ".mm"
+    ],
 }
 
 
