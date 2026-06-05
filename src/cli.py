@@ -190,14 +190,27 @@ def _handle_generate(args: argparse.Namespace) -> None:
     logger.info("Step 1/3 -- Parsing source files...")
     start = time.time()
     
+    from src.parser.registry import ParserRegistry
     from src.parser.python_parser import PythonParser
-    parser = PythonParser()
-    parse_result = parser.parse_directory(input_dir, exclude_dirs=config.get("exclude", []))
+    from src.parser.universal_parser import UniversalParser
+
+    registry = ParserRegistry()
+    registry.register(UniversalParser())
+    registry.register(PythonParser())
+
+    parse_results = registry.parse_all(input_dir, exclude_dirs=config.get("exclude", []))
+
+    from src.parser.base import ParseResult
+    parse_result = ParseResult(language="mixed")
+    for pr in parse_results:
+        parse_result.modules.extend(pr.modules)
+        parse_result.errors.extend(pr.errors)
+
     elapsed = time.time() - start
 
     if not parse_result.modules:
         logger.warning("No supported source files found in %s", input_dir)
-        logger.warning("Supported languages: %s", ", ".join(SUPPORTED_LANGUAGES))
+        logger.warning("Supported languages: %s", ", ".join(registry.supported_extensions()))
         sys.exit(0)
 
     logger.info(
@@ -271,16 +284,30 @@ def _handle_analyze(args: argparse.Namespace) -> None:
 
     logger.info("Analyzing codebase at: %s", input_dir)
 
-    source_files = _collect_source_files(input_dir, config.get("exclude", []))
+    from src.parser.registry import ParserRegistry
+    from src.parser.python_parser import PythonParser
+    from src.parser.universal_parser import UniversalParser
 
-    if not source_files:
+    registry = ParserRegistry()
+    registry.register(UniversalParser())
+    registry.register(PythonParser())
+
+    parse_results = registry.parse_all(input_dir, exclude_dirs=config.get("exclude", []))
+
+    from src.parser.base import ParseResult
+    parse_result = ParseResult(language="mixed")
+    for pr in parse_results:
+        parse_result.modules.extend(pr.modules)
+        parse_result.errors.extend(pr.errors)
+
+    if not parse_result.modules:
         logger.warning("No supported source files found in %s", input_dir)
         sys.exit(0)
 
-    logger.info("Detected %d source file(s):", len(source_files))
-    for f in source_files:
-        rel = f.relative_to(input_dir)
-        size = f.stat().st_size
+    logger.info("Detected %d source file(s):", len(parse_result.modules))
+    for mod in parse_result.modules:
+        rel = mod.file_path.relative_to(input_dir)
+        size = mod.file_path.stat().st_size
         logger.info("  %-40s  %d bytes", str(rel), size)
 
     # TODO: Wire into src.parser and src.analyzer once implemented.
@@ -421,47 +448,6 @@ def _handle_version(args: argparse.Namespace) -> None:
         args: Parsed command-line arguments.
     """
     print(f"{APP_NAME} v{APP_VERSION}")
-
-
-# ---------------------------------------------------------------------------
-# File Collection Utility
-# ---------------------------------------------------------------------------
-
-# Map of supported language names to their file extensions.
-_LANGUAGE_EXTENSIONS: dict[str, list[str]] = {
-    "python": [".py"],
-}
-
-
-def _collect_source_files(
-    root: Path,
-    exclude_dirs: list[str],
-) -> list[Path]:
-    """Walk the directory tree and collect supported source files.
-
-    Args:
-        root: The root directory to search.
-        exclude_dirs: Directory names to skip during traversal.
-
-    Returns:
-        A sorted list of Path objects pointing to source files.
-    """
-    valid_extensions: set[str] = set()
-    for lang in SUPPORTED_LANGUAGES:
-        valid_extensions.update(_LANGUAGE_EXTENSIONS.get(lang, []))
-
-    collected: list[Path] = []
-
-    for dirpath, dirnames, filenames in os.walk(root):
-        # Prune excluded directories in-place so os.walk skips them.
-        dirnames[:] = [
-            d for d in dirnames if d not in exclude_dirs
-        ]
-        for fname in filenames:
-            if Path(fname).suffix in valid_extensions:
-                collected.append(Path(dirpath) / fname)
-
-    return sorted(collected)
 
 
 # ---------------------------------------------------------------------------
