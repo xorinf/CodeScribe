@@ -29,7 +29,24 @@ APP_NAME: str = "CodeScribe"
 APP_VERSION: str = "0.1.0"
 DEFAULT_CONFIG_FILENAME: str = "codescribe.json"
 DEFAULT_OUTPUT_DIR: str = "./docs"
-SUPPORTED_LANGUAGES: list[str] = ["python"]
+SUPPORTED_LANGUAGES: list[str] = [
+    "python",
+    "javascript",
+    "typescript",
+    "java",
+    "c",
+    "cpp",
+    "csharp",
+    "go",
+    "rust",
+    "ruby",
+    "php",
+    "swift",
+    "kotlin",
+    "objective-c",
+    "scala",
+    "groovy",
+]
 
 # Default configuration values written by `codescribe init`
 DEFAULT_CONFIG: dict = {
@@ -190,21 +207,36 @@ def _handle_generate(args: argparse.Namespace) -> None:
     logger.info("Step 1/3 -- Parsing source files...")
     start = time.time()
     
+    from src.parser.registry import ParserRegistry
     from src.parser.python_parser import PythonParser
-    parser = PythonParser()
-    parse_result = parser.parse_directory(input_dir, exclude_dirs=config.get("exclude", []))
+    from src.parser.universal_parser import UniversalParser
+    from src.parser.base import ParseResult
+
+    registry = ParserRegistry()
+    registry.register(PythonParser())
+    registry.register(UniversalParser())
+
+    parse_results = registry.parse_all(input_dir, exclude_dirs=config.get("exclude", []))
     elapsed = time.time() - start
 
-    if not parse_result.modules:
+    # Combine all parse results into one
+    combined_result = ParseResult(language="mixed")
+    for pr in parse_results:
+        combined_result.modules.extend(pr.modules)
+        combined_result.errors.extend(pr.errors)
+
+    if not combined_result.modules:
         logger.warning("No supported source files found in %s", input_dir)
         logger.warning("Supported languages: %s", ", ".join(SUPPORTED_LANGUAGES))
         sys.exit(0)
 
     logger.info(
         "  Parsed %d module(s) in %.2fs",
-        len(parse_result.modules),
+        len(combined_result.modules),
         elapsed,
     )
+
+    parse_result = combined_result
 
     # ------------------------------------------------------------------
     # Step 2: Analyze code structure
@@ -283,8 +315,37 @@ def _handle_analyze(args: argparse.Namespace) -> None:
         size = f.stat().st_size
         logger.info("  %-40s  %d bytes", str(rel), size)
 
-    # TODO: Wire into src.parser and src.analyzer once implemented.
-    logger.info("Deep analysis pending implementation (Phase 2).")
+    from src.parser.registry import ParserRegistry
+    from src.parser.python_parser import PythonParser
+    from src.parser.universal_parser import UniversalParser
+    from src.parser.base import ParseResult
+
+    registry = ParserRegistry()
+    registry.register(PythonParser())
+    registry.register(UniversalParser())
+
+    parse_results = registry.parse_all(input_dir, exclude_dirs=config.get("exclude", []))
+
+    combined_result = ParseResult(language="mixed")
+    for pr in parse_results:
+        combined_result.modules.extend(pr.modules)
+        combined_result.errors.extend(pr.errors)
+
+    if not combined_result.modules:
+        logger.warning("No parseable structures found in %s", input_dir)
+        sys.exit(0)
+
+    logger.info("Parsed %d modules.", len(combined_result.modules))
+
+    from src.analyzer.analyzer import SemanticAnalyzer
+    analyzer = SemanticAnalyzer(project_root=input_dir)
+    analysis = analyzer.analyze(combined_result)
+
+    logger.info(
+        "Analyzed %d classes and %d dependencies.",
+        len(analysis.inheritance_tree.nodes),
+        len(analysis.dependency_graph.edges),
+    )
 
 
 def _handle_scrape(args: argparse.Namespace) -> None:
@@ -430,6 +491,21 @@ def _handle_version(args: argparse.Namespace) -> None:
 # Map of supported language names to their file extensions.
 _LANGUAGE_EXTENSIONS: dict[str, list[str]] = {
     "python": [".py"],
+    "javascript": [".js", ".jsx"],
+    "typescript": [".ts", ".tsx"],
+    "java": [".java"],
+    "c": [".c", ".h"],
+    "cpp": [".cpp", ".hpp", ".cc", ".hh"],
+    "csharp": [".cs"],
+    "go": [".go"],
+    "rust": [".rs"],
+    "ruby": [".rb"],
+    "php": [".php"],
+    "swift": [".swift"],
+    "kotlin": [".kt", ".kts"],
+    "objective-c": [".m", ".mm"],
+    "scala": [".scala"],
+    "groovy": [".groovy"],
 }
 
 
