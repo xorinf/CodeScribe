@@ -29,7 +29,21 @@ APP_NAME: str = "CodeScribe"
 APP_VERSION: str = "0.1.0"
 DEFAULT_CONFIG_FILENAME: str = "codescribe.json"
 DEFAULT_OUTPUT_DIR: str = "./docs"
-SUPPORTED_LANGUAGES: list[str] = ["python"]
+SUPPORTED_LANGUAGES: list[str] = [
+    "python",
+    "javascript",
+    "typescript",
+    "java",
+    "cpp",
+    "c",
+    "go",
+    "rust",
+    "ruby",
+    "csharp",
+    "swift",
+    "php",
+    "kotlin",
+]
 
 # Default configuration values written by `codescribe init`
 DEFAULT_CONFIG: dict = {
@@ -190,9 +204,29 @@ def _handle_generate(args: argparse.Namespace) -> None:
     logger.info("Step 1/3 -- Parsing source files...")
     start = time.time()
     
+    from src.parser.registry import ParserRegistry
     from src.parser.python_parser import PythonParser
-    parser = PythonParser()
-    parse_result = parser.parse_directory(input_dir, exclude_dirs=config.get("exclude", []))
+    from src.parser.universal_parser import UniversalParser
+    from src.parser.base import ParseResult
+
+    registry = ParserRegistry()
+    registry.register(PythonParser())
+
+    for lang in SUPPORTED_LANGUAGES:
+        if lang == "python":
+            continue
+        exts = _LANGUAGE_EXTENSIONS.get(lang, [])
+        if exts:
+            registry.register(UniversalParser(language_name=lang, extensions=exts))
+
+    parse_results = registry.parse_all(input_dir, exclude_dirs=config.get("exclude", []))
+
+    # Combine results
+    parse_result = ParseResult(language="multi")
+    for pr in parse_results:
+        parse_result.modules.extend(pr.modules)
+        parse_result.errors.extend(pr.errors)
+
     elapsed = time.time() - start
 
     if not parse_result.modules:
@@ -430,6 +464,18 @@ def _handle_version(args: argparse.Namespace) -> None:
 # Map of supported language names to their file extensions.
 _LANGUAGE_EXTENSIONS: dict[str, list[str]] = {
     "python": [".py"],
+    "javascript": [".js", ".jsx"],
+    "typescript": [".ts", ".tsx"],
+    "java": [".java"],
+    "cpp": [".cpp", ".cc", ".cxx", ".hpp", ".h"],
+    "c": [".c", ".h"],
+    "go": [".go"],
+    "rust": [".rs"],
+    "ruby": [".rb"],
+    "csharp": [".cs"],
+    "swift": [".swift"],
+    "php": [".php"],
+    "kotlin": [".kt", ".kts"],
 }
 
 
