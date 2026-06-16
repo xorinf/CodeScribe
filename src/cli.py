@@ -29,7 +29,7 @@ APP_NAME: str = "CodeScribe"
 APP_VERSION: str = "0.1.0"
 DEFAULT_CONFIG_FILENAME: str = "codescribe.json"
 DEFAULT_OUTPUT_DIR: str = "./docs"
-SUPPORTED_LANGUAGES: list[str] = ["python"]
+SUPPORTED_LANGUAGES: list[str] = ["python", "universal"]
 
 # Default configuration values written by `codescribe init`
 DEFAULT_CONFIG: dict = {
@@ -190,10 +190,30 @@ def _handle_generate(args: argparse.Namespace) -> None:
     logger.info("Step 1/3 -- Parsing source files...")
     start = time.time()
     
+    from src.parser.registry import ParserRegistry
     from src.parser.python_parser import PythonParser
-    parser = PythonParser()
-    parse_result = parser.parse_directory(input_dir, exclude_dirs=config.get("exclude", []))
+    from src.parser.universal_parser import UniversalParser
+    from src.parser.base import ParseResult
+
+    registry = ParserRegistry()
+    registry.register(PythonParser())
+    registry.register(UniversalParser())
+
+    parse_results = registry.parse_all(input_dir, exclude_dirs=config.get("exclude", []))
     elapsed = time.time() - start
+
+    # Combine parse results
+    combined_modules = []
+    combined_errors = []
+    for result in parse_results:
+        combined_modules.extend(result.modules)
+        combined_errors.extend(result.errors)
+
+    parse_result = ParseResult(
+        modules=combined_modules,
+        language="mixed",
+        errors=combined_errors,
+    )
 
     if not parse_result.modules:
         logger.warning("No supported source files found in %s", input_dir)
@@ -430,6 +450,11 @@ def _handle_version(args: argparse.Namespace) -> None:
 # Map of supported language names to their file extensions.
 _LANGUAGE_EXTENSIONS: dict[str, list[str]] = {
     "python": [".py"],
+    "universal": [
+        ".js", ".ts", ".jsx", ".tsx",
+        ".java", ".c", ".cpp", ".cc", ".h", ".hpp",
+        ".cs", ".go", ".rs", ".rb", ".php", ".swift", ".kt"
+    ],
 }
 
 
