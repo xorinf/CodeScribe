@@ -22,7 +22,7 @@ Usage:
 | Classes | 1 |
 | Methods | 6 |
 | Imports | 5 |
-| Lines | 153 |
+| Lines | 156 |
 | Doc Coverage | 100% |
 
 ### Imports
@@ -47,7 +47,7 @@ from src.parser.base import ClassInfo, FunctionInfo
 class NLPEngine
 ```
 
-(public) | Lines 26-153
+(public) | Lines 26-156
 
 Natural Language Processing engine for enhancing documentation.
 
