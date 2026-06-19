@@ -18,11 +18,11 @@ Usage:
 
 | Metric | Value |
 |---|---|
-| Functions | 11 |
+| Functions | 14 |
 | Classes | 0 |
 | Methods | 0 |
 | Imports | 8 |
-| Lines | 503 |
+| Lines | 744 |
 | Doc Coverage | 100% |
 
 ### Imports
@@ -56,7 +56,7 @@ from typing import Optional
 def main() -> None
 ```
 
-(public) | Lines 494-503
+(public) | Lines 735-744
 
 Parse arguments and dispatch to the appropriate subcommand handler.
 
