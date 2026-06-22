@@ -29,7 +29,7 @@ APP_NAME: str = "CodeScribe"
 APP_VERSION: str = "0.1.0"
 DEFAULT_CONFIG_FILENAME: str = "codescribe.json"
 DEFAULT_OUTPUT_DIR: str = "./docs"
-SUPPORTED_LANGUAGES: list[str] = ["python"]
+SUPPORTED_LANGUAGES: list[str] = ["python", "multi"]
 
 # Default configuration values written by `codescribe init`
 DEFAULT_CONFIG: dict = {
@@ -191,8 +191,23 @@ def _handle_generate(args: argparse.Namespace) -> None:
     start = time.time()
     
     from src.parser.python_parser import PythonParser
-    parser = PythonParser()
-    parse_result = parser.parse_directory(input_dir, exclude_dirs=config.get("exclude", []))
+    from src.parser.universal_parser import UniversalParser
+    from src.parser.registry import ParserRegistry
+    from src.parser.base import ParseResult
+
+    registry = ParserRegistry()
+    registry.register(PythonParser())
+    registry.register(UniversalParser())
+
+    # parse_all returns a list of ParseResults, one per unique parser.
+    parse_results_list = registry.parse_all(input_dir, exclude_dirs=config.get("exclude", []))
+
+    # Combine results into a single ParseResult required by SemanticAnalyzer
+    parse_result = ParseResult(language="multi")
+    for pr in parse_results_list:
+        parse_result.modules.extend(pr.modules)
+        parse_result.errors.extend(pr.errors)
+
     elapsed = time.time() - start
 
     if not parse_result.modules:
@@ -430,6 +445,13 @@ def _handle_version(args: argparse.Namespace) -> None:
 # Map of supported language names to their file extensions.
 _LANGUAGE_EXTENSIONS: dict[str, list[str]] = {
     "python": [".py"],
+    "multi": [
+        ".js", ".jsx", ".ts", ".tsx",
+        ".java", ".kt", ".scala",
+        ".c", ".cpp", ".cc", ".h", ".hpp",
+        ".cs", ".go", ".rs", ".rb", ".php",
+        ".swift", ".m", ".sh", ".bash"
+    ],
 }
 
 
