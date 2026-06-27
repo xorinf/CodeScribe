@@ -29,7 +29,17 @@ APP_NAME: str = "CodeScribe"
 APP_VERSION: str = "0.1.0"
 DEFAULT_CONFIG_FILENAME: str = "codescribe.json"
 DEFAULT_OUTPUT_DIR: str = "./docs"
-SUPPORTED_LANGUAGES: list[str] = ["python"]
+SUPPORTED_LANGUAGES: list[str] = [
+    "python",
+    "javascript",
+    "typescript",
+    "java",
+    "c",
+    "cpp",
+    "go",
+    "rust",
+    "ruby",
+]
 
 # Default configuration values written by `codescribe init`
 DEFAULT_CONFIG: dict = {
@@ -190,19 +200,39 @@ def _handle_generate(args: argparse.Namespace) -> None:
     logger.info("Step 1/3 -- Parsing source files...")
     start = time.time()
     
+    from src.parser.registry import ParserRegistry
     from src.parser.python_parser import PythonParser
-    parser = PythonParser()
-    parse_result = parser.parse_directory(input_dir, exclude_dirs=config.get("exclude", []))
+    from src.parser.universal_parser import UniversalParser
+
+    registry = ParserRegistry()
+    registry.register(PythonParser())
+
+    # Configure UniversalParser with all non-Python extensions
+    universal_exts = []
+    for lang, exts in _LANGUAGE_EXTENSIONS.items():
+        if lang != "python":
+            universal_exts.extend(exts)
+    registry.register(UniversalParser(extensions=universal_exts))
+
+    parse_results = registry.parse_all(input_dir, exclude_dirs=config.get("exclude", []))
     elapsed = time.time() - start
 
-    if not parse_result.modules:
+    from src.parser.base import ParseResult
+
+    # Combine results
+    combined_result = ParseResult(language="multi")
+    for res in parse_results:
+        combined_result.modules.extend(res.modules)
+        combined_result.errors.extend(res.errors)
+
+    if not combined_result.modules:
         logger.warning("No supported source files found in %s", input_dir)
         logger.warning("Supported languages: %s", ", ".join(SUPPORTED_LANGUAGES))
         sys.exit(0)
 
     logger.info(
         "  Parsed %d module(s) in %.2fs",
-        len(parse_result.modules),
+        len(combined_result.modules),
         elapsed,
     )
 
@@ -214,7 +244,7 @@ def _handle_generate(args: argparse.Namespace) -> None:
     
     from src.analyzer.analyzer import SemanticAnalyzer
     analyzer = SemanticAnalyzer(project_root=input_dir)
-    analysis = analyzer.analyze(parse_result)
+    analysis = analyzer.analyze(combined_result)
     
     logger.info(
         "  Analyzed %d classes and %d dependencies in %.2fs",
@@ -242,7 +272,7 @@ def _handle_generate(args: argparse.Namespace) -> None:
     )
     
     files = generator.generate(
-        parse_result, analysis, output_dir, single_file=False
+        combined_result, analysis, output_dir, single_file=False
     )
     
     logger.info(
@@ -430,6 +460,14 @@ def _handle_version(args: argparse.Namespace) -> None:
 # Map of supported language names to their file extensions.
 _LANGUAGE_EXTENSIONS: dict[str, list[str]] = {
     "python": [".py"],
+    "javascript": [".js", ".jsx"],
+    "typescript": [".ts", ".tsx"],
+    "java": [".java"],
+    "c": [".c", ".h"],
+    "cpp": [".cpp", ".hpp", ".cc", ".cxx"],
+    "go": [".go"],
+    "rust": [".rs"],
+    "ruby": [".rb"],
 }
 
 
