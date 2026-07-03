@@ -29,7 +29,10 @@ APP_NAME: str = "CodeScribe"
 APP_VERSION: str = "0.1.0"
 DEFAULT_CONFIG_FILENAME: str = "codescribe.json"
 DEFAULT_OUTPUT_DIR: str = "./docs"
-SUPPORTED_LANGUAGES: list[str] = ["python"]
+SUPPORTED_LANGUAGES: list[str] = [
+    "python", "javascript", "typescript", "java", "c", "cpp", "csharp",
+    "go", "rust", "ruby", "php", "swift", "kotlin", "universal"
+]
 
 # Default configuration values written by `codescribe init`
 DEFAULT_CONFIG: dict = {
@@ -190,9 +193,23 @@ def _handle_generate(args: argparse.Namespace) -> None:
     logger.info("Step 1/3 -- Parsing source files...")
     start = time.time()
     
+    from src.parser.registry import ParserRegistry
     from src.parser.python_parser import PythonParser
-    parser = PythonParser()
-    parse_result = parser.parse_directory(input_dir, exclude_dirs=config.get("exclude", []))
+    from src.parser.universal_parser import UniversalParser
+    from src.parser.base import ParseResult
+
+    registry = ParserRegistry()
+    registry.register(PythonParser())
+    registry.register(UniversalParser())
+
+    results = registry.parse_all(input_dir, exclude_dirs=config.get("exclude", []))
+
+    # Combine results into a single ParseResult
+    parse_result = ParseResult(language="multi")
+    for res in results:
+        parse_result.modules.extend(res.modules)
+        parse_result.errors.extend(res.errors)
+
     elapsed = time.time() - start
 
     if not parse_result.modules:
@@ -283,8 +300,34 @@ def _handle_analyze(args: argparse.Namespace) -> None:
         size = f.stat().st_size
         logger.info("  %-40s  %d bytes", str(rel), size)
 
-    # TODO: Wire into src.parser and src.analyzer once implemented.
-    logger.info("Deep analysis pending implementation (Phase 2).")
+    from src.parser.registry import ParserRegistry
+    from src.parser.python_parser import PythonParser
+    from src.parser.universal_parser import UniversalParser
+    from src.parser.base import ParseResult
+    from src.analyzer.analyzer import SemanticAnalyzer
+
+    registry = ParserRegistry()
+    registry.register(PythonParser())
+    registry.register(UniversalParser())
+
+    results = registry.parse_all(input_dir, exclude_dirs=config.get("exclude", []))
+
+    parse_result = ParseResult(language="multi")
+    for res in results:
+        parse_result.modules.extend(res.modules)
+        parse_result.errors.extend(res.errors)
+
+    if not parse_result.modules:
+        logger.info("No files parsed.")
+        return
+
+    analyzer = SemanticAnalyzer(project_root=input_dir)
+    analysis = analyzer.analyze(parse_result)
+
+    logger.info("Analysis complete.")
+    logger.info("  Total Modules: %d", analysis.codebase_stats.total_modules)
+    logger.info("  Total Classes: %d", analysis.codebase_stats.total_classes)
+    logger.info("  Total Functions: %d", analysis.codebase_stats.total_functions)
 
 
 def _handle_scrape(args: argparse.Namespace) -> None:
@@ -430,6 +473,19 @@ def _handle_version(args: argparse.Namespace) -> None:
 # Map of supported language names to their file extensions.
 _LANGUAGE_EXTENSIONS: dict[str, list[str]] = {
     "python": [".py"],
+    "universal": [".js", ".ts", ".java", ".c", ".cpp", ".cs", ".go", ".rs", ".rb", ".php", ".swift", ".kt"],
+    "javascript": [".js"],
+    "typescript": [".ts"],
+    "java": [".java"],
+    "c": [".c", ".h"],
+    "cpp": [".cpp", ".hpp", ".cc", ".hh"],
+    "csharp": [".cs"],
+    "go": [".go"],
+    "rust": [".rs"],
+    "ruby": [".rb"],
+    "php": [".php"],
+    "swift": [".swift"],
+    "kotlin": [".kt"],
 }
 
 
