@@ -29,7 +29,7 @@ APP_NAME: str = "CodeScribe"
 APP_VERSION: str = "0.1.0"
 DEFAULT_CONFIG_FILENAME: str = "codescribe.json"
 DEFAULT_OUTPUT_DIR: str = "./docs"
-SUPPORTED_LANGUAGES: list[str] = ["python"]
+SUPPORTED_LANGUAGES: list[str] = ["python", "universal"]
 
 # Default configuration values written by `codescribe init`
 DEFAULT_CONFIG: dict = {
@@ -190,14 +190,27 @@ def _handle_generate(args: argparse.Namespace) -> None:
     logger.info("Step 1/3 -- Parsing source files...")
     start = time.time()
     
+    from src.parser.registry import ParserRegistry
     from src.parser.python_parser import PythonParser
-    parser = PythonParser()
-    parse_result = parser.parse_directory(input_dir, exclude_dirs=config.get("exclude", []))
+    from src.parser.universal_parser import UniversalParser
+    from src.parser.base import ParseResult
+
+    registry = ParserRegistry()
+    registry.register(PythonParser())
+    registry.register(UniversalParser())
+
+    results = registry.parse_all(input_dir, exclude_dirs=config.get("exclude", []))
+
+    parse_result = ParseResult(language="multi")
+    for r in results:
+        parse_result.modules.extend(r.modules)
+        parse_result.errors.extend(r.errors)
+
     elapsed = time.time() - start
 
     if not parse_result.modules:
         logger.warning("No supported source files found in %s", input_dir)
-        logger.warning("Supported languages: %s", ", ".join(SUPPORTED_LANGUAGES))
+        logger.warning("Supported extensions: %s", ", ".join(registry.supported_extensions()))
         sys.exit(0)
 
     logger.info(
@@ -430,6 +443,10 @@ def _handle_version(args: argparse.Namespace) -> None:
 # Map of supported language names to their file extensions.
 _LANGUAGE_EXTENSIONS: dict[str, list[str]] = {
     "python": [".py"],
+    "universal": [
+        ".js", ".ts", ".java", ".cpp", ".c", ".cs", ".go",
+        ".rs", ".rb", ".php", ".swift", ".kt", ".h", ".hpp", ".m"
+    ]
 }
 
 
@@ -446,9 +463,14 @@ def _collect_source_files(
     Returns:
         A sorted list of Path objects pointing to source files.
     """
-    valid_extensions: set[str] = set()
-    for lang in SUPPORTED_LANGUAGES:
-        valid_extensions.update(_LANGUAGE_EXTENSIONS.get(lang, []))
+    from src.parser.registry import ParserRegistry
+    from src.parser.python_parser import PythonParser
+    from src.parser.universal_parser import UniversalParser
+
+    registry = ParserRegistry()
+    registry.register(PythonParser())
+    registry.register(UniversalParser())
+    valid_extensions: set[str] = set(registry.supported_extensions())
 
     collected: list[Path] = []
 
