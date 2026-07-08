@@ -6,30 +6,42 @@
 
 | Metric | Value |
 |---|---|
-| Language | Python |
-| Total Modules | 13 |
-| Total Functions | 31 |
-| Total Classes | 21 |
-| Total Methods | 47 |
-| Estimated Lines | 3228 |
+| Language | Multi |
+| Total Modules | 25 |
+| Total Functions | 34 |
+| Total Classes | 30 |
+| Total Methods | 75 |
+| Estimated Lines | 4197 |
 | Documentation Coverage | 100% |
 
-**Most complex module**: `src.parser.python_parser`
-**Most depended-on module**: `src.parser.base`
+**Most complex module**: `parser.python_parser`
+**Most depended-on module**: `models`
 
 ## Modules
 
-- [__init__](__init__.md)
-- [__init__](__init__.md)
-- [analyzer](analyzer.md)
-- [base](base.md)
-- [cli](cli.md)
-- [generator](generator.md)
-- [models](models.md)
-- [nlp](nlp.md)
-- [python_parser](python_parser.md)
-- [registry](registry.md)
-- [templates](templates.md)
+- [__init__.py](__init__.py.md)
+- [__init__.py](__init__.py.md)
+- [__init__.py](__init__.py.md)
+- [__init__.py](__init__.py.md)
+- [__init__.py](__init__.py.md)
+- [analyzer.py](analyzer.py.md)
+- [base.py](base.py.md)
+- [cli.py](cli.py.md)
+- [engine.py](engine.py.md)
+- [generator.py](generator.py.md)
+- [github.py](github.py.md)
+- [gitlab.py](gitlab.py.md)
+- [heuristics.py](heuristics.py.md)
+- [models.py](models.py.md)
+- [models.py](models.py.md)
+- [nlp.py](nlp.py.md)
+- [pipeline.py](pipeline.py.md)
+- [python_parser.py](python_parser.py.md)
+- [registry.py](registry.py.md)
+- [secrets.py](secrets.py.md)
+- [templates.py](templates.py.md)
+- [trainer.py](trainer.py.md)
+- [universal_parser.py](universal_parser.py.md)
 
 ---
 
@@ -39,27 +51,27 @@
 
 | Source | Target | Imported Names |
 |---|---|---|
-| `src.parser.registry` | `src.parser.base` | BaseParser, ParseResult |
-| `src.parser.python_parser` | `src.parser.base` | BaseParser, ClassInfo, FunctionInfo, ImportInfo, MethodInfo, ModuleInfo, Parameter, Visibility |
-| `src.generator` | `src.generator.generator` | DocGenerator |
-| `src.generator.templates` | `src.parser.base` | ClassInfo, FunctionInfo, ImportInfo, MethodInfo, ModuleInfo, Parameter, Visibility |
-| `src.generator.templates` | `src.analyzer.models` | AnalysisResult, CodebaseStats, DependencyEdge, InheritanceNode, ModuleMetrics |
-| `src.generator.nlp` | `src.parser.base` | ClassInfo, FunctionInfo |
-| `src.generator.generator` | `src.parser.base` | ModuleInfo, ParseResult, FunctionInfo, ClassInfo |
-| `src.generator.generator` | `src.analyzer.models` | AnalysisResult, ModuleMetrics |
-| `src.generator.generator` | `src.generator` | templates |
-| `src.generator.generator` | `src.generator.nlp` | NLPEngine |
-| `src.analyzer.analyzer` | `src.parser.base` | ClassInfo, FunctionInfo, ModuleInfo, ParseResult, Visibility |
-| `src.analyzer.analyzer` | `src.analyzer.models` | AnalysisResult, CodebaseStats, DependencyEdge, DependencyGraph, InheritanceNode, InheritanceTree, ModuleMetrics |
-| `src.analyzer` | `src.analyzer.analyzer` | SemanticAnalyzer |
-| `src.analyzer` | `src.analyzer.models` | AnalysisResult, CodebaseStats, DependencyGraph, InheritanceTree, ModuleMetrics |
+| `cleanser.pipeline` | `heuristics` | QualityFilter |
+| `cleanser.pipeline` | `secrets` | SecretScanner |
+| `cleanser` | `pipeline` | CleanserPipeline |
+| `scraper.gitlab` | `models` | RepositoryMetadata |
+| `scraper.github` | `models` | RepositoryMetadata |
+| `scraper` | `engine` | AsyncScraperEngine |
+| `scraper` | `models` | RepositoryMetadata |
+| `scraper.engine` | `github` | GitHubScraper |
+| `scraper.engine` | `gitlab` | GitLabScraper |
+| `scraper.engine` | `models` | RepositoryMetadata |
+| `tokenizer` | `trainer` | CodeTokenizerTrainer |
 
 ### External Dependencies
 
 - `__future__`
 - `abc`
+- `aiofiles`
+- `aiohttp`
 - `argparse`
 - `ast`
+- `asyncio`
 - `collections`
 - `dataclasses`
 - `enum`
@@ -67,25 +79,39 @@
 - `logging`
 - `os`
 - `pathlib`
+- `re`
+- `src.analyzer.analyzer`
+- `src.analyzer.models`
+- `src.generator`
+- `src.generator.generator`
+- `src.generator.nlp`
+- `src.parser.base`
 - `sys`
 - `time`
+- `tokenizers`
 - `typing`
+- `zipfile`
 
 ---
 
 ## Class Hierarchy
 
+- **UniversalParser** (depth: 1)
+  - Inherits from: BaseParser
+  - Subclassed by: none
+  - Defined in: `parser.universal_parser`
+
 - **PythonParser** (depth: 1)
   - Inherits from: BaseParser
   - Subclassed by: none
-  - Defined in: `src.parser.python_parser`
+  - Defined in: `parser.python_parser`
 
 - **Visibility** (depth: 0)
   - Inherits from: Enum
   - Subclassed by: none
-  - Defined in: `src.parser.base`
+  - Defined in: `parser.base`
 
 - **BaseParser** (depth: 0)
   - Inherits from: ABC
-  - Subclassed by: PythonParser
-  - Defined in: `src.parser.base`
+  - Subclassed by: UniversalParser, PythonParser
+  - Defined in: `parser.base`

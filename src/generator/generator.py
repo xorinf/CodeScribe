@@ -195,7 +195,7 @@ class DocGenerator:
         ))
         index_sections.append("## Modules\n")
         for mod in modules:
-            name = mod.file_path.stem
+            name = mod.file_path.name
             index_sections.append("- [{}]({}.md)".format(name, name))
         index_sections.append("")
         index_sections.append(templates.render_dependency_section(analysis))
@@ -215,7 +215,7 @@ class DocGenerator:
                 filtered_mod, module_metrics
             )
 
-            file_name = "{}.md".format(mod.file_path.stem)
+            file_name = "{}.md".format(mod.file_path.name)
             file_path = output_dir / file_name
             file_path.write_text(content, encoding="utf-8")
             generated.append(file_path)
